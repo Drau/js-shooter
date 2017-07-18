@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Canvas Follow Mouse</title>
+  <title>Our happy shooter</title>
   <style>
     canvas {
       border: #333 10px solid;
@@ -97,7 +97,7 @@
         if (this.type == "target") {
             setTimeout(function(target) {
                 target.delete = true;
-            }, 3000, this)
+            }, 1500, this)
         }
         this.update = function() {
             if (this.type == "bullet") {
