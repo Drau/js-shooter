@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Canvas Follow Mouse</title>
+  <style>
+    canvas {
+      border: #333 10px solid;
+    }
+    body {
+      padding: 50px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="myCanvas" width="550px" height="350px"></canvas>
+  <script>
+    var canvas = document.querySelector("#myCanvas");
+    var context = canvas.getContext("2d");
+
+    var bullets = [];
+    var targets = [];
+    var scoreText = new component('text', 380, 20, "green", 100, 50);
+    var startX = 50;
+    var startY = 175;
+    var gunLen = 20;
+
+    function update() {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.beginPath();
+        context.moveTo(startX, startY);
+        context.lineTo(endX,endY);
+        context.stroke();
+        context.closePath();
+        if (targets.length < 1){
+            targets.push(new component("target", randomNum(100, 450), randomNum(50, 300), "blue", 10, 20))
+        }
+        for (i = targets.length-1 ; i >= 0 ; i-- ) {
+            if (!targets[i].delete) {
+                targets[i].update()
+            } else {
+                targets.splice(i, 1)
+                console.log("MISS!")
+                scoreText.missCount+=1;
+            }
+        }
+        for (i = bullets.length-1 ; i >=0 ; i--) {
+            bullets[i].update();
+            for (j = targets.length-1 ; j >= 0 ; j-- ) {
+                hit = bullets[i].check_hit(targets[j]);
+                if (hit) {
+                    targets.splice(j, 1)
+                }
+            }
+            if (bullets[i].hit) {
+                console.log("HIT!");
+                scoreText.hitCount+=1;
+            }
+            if (bullets[i].stop) {
+                bullets.splice(i, 1);
+            }
+        }
+        scoreText.update();
+        requestAnimationFrame(update);
+    }
+    var canvasPos = getPosition(canvas);
+    var endX = 70;
+    var endY = 175;
+    var mouseX = 0;
+    var mouseY = 0;
+
+    var hitX = 0;
+    var hitY = 0;
+    var dist = 1;
+    
+    canvas.addEventListener("mousemove", setMousePosition, false);
+    canvas.addEventListener("mousedown", fire, false);
+    
+    function randomNum(min,max){
+        return Math.floor(Math.random()*(max-min+1)+min);        
+    }
+
+    function component(type, x1, y1, color, x2, y2) {
+        this.delete = false;
+        this.type = type;
+        this.startX = x1;
+        this.startY = y1;
+        this.endX = x2;
+        this.endY = y2;
+        this.x = 0;
+        this.y = 0;
+        this.dist = 1;
+        this.color = color;
+        this.stop = false;
+        this.hit = false;
+        this.hitCount = 0;
+        this.missCount = 0;
+        if (this.type == "target") {
+            setTimeout(function(target) {
+                target.delete = true;
+            }, 3000, this)
+        }
+        this.update = function() {
+            if (this.type == "bullet") {
+                cords = new_cords(this.startX, this.startY, this.endX, this.endY, this.dist);
+                this.x = cords[0];
+                this.y = cords[1];
+                if (this.x >= canvas.width || this.y >= canvas.height || this.x<=0 || this.y<=0) {
+                    this.stop = true;
+                    return;
+                }
+                this.dist += 10;
+                context.fillStyle = this.color;
+                context.beginPath();
+                context.arc(this.x,this.y,5,0,2*Math.PI);
+                context.stroke();
+                context.closePath();
+                context.fill();
+            } else if (this.type == "target") {
+                context.fillStyle = this.color;
+                context.beginPath();
+                context.rect(this.startX, this.startY, this.endX, this.endY);
+                context.stroke();
+                context.closePath();
+                context.fill();
+            } else if (this.type == 'text') {
+                context.beginPath();
+                context.font = "20px consolas";
+                context.fillStyle = this.color;
+                text = "Hits: "+ this.hitCount+ " - Misses: "+ this.missCount
+                context.fillText(text, this.startX, this.startY);
+            }
+            return true;
+        }
+        this.check_hit = function(target) {
+            var myleft = this.x;
+            var myright = this.x + 5;
+            var mytop = this.y;
+            var mybottom = this.y + 5;
+            var otherleft = target.startX;
+            var otherright = target.startX + 10;
+            var othertop = target.startY;
+            var otherbottom = target.startY + 20;
+            if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
+                return false;
+            }
+            this.hit = true;
+            this.stop = true;
+            return true;
+        }
+        this.destroy = function() {
+            this.delete = true;
+        }
+
+    }
+
+
+    function setMousePosition(e) {
+        mouseX = e.clientX - canvasPos.x;
+        mouseY = e.clientY - canvasPos.y;
+        var cords = new_cords(startX, startY, mouseX, mouseY, gunLen);
+        endX = cords[0];
+        endY = cords[1];
+    }
+
+    function new_cords(x1, y1, x2, y2, d) {
+        distance = Math.sqrt( Math.pow(x2-x1,2) + Math.pow(y2-y1, 2));
+        ratio = d/distance;
+        x = (1-ratio)*x1 + ratio*x2;
+        y = (1-ratio)*y1 + ratio*y2;
+        return [x, y];
+    }
+
+    function fire() {
+        if (bullets.length == 1) {
+            return;
+        }
+        bullets.push(new component("bullet", startX, startY, 'red', mouseX, mouseY));
+    }
+
+    update();   
+
+    function getPosition(el) {
+        var xPosition = 0;
+        var yPosition = 0;
+        
+        while (el) {
+            xPosition += (el.offsetLeft - el.scrollLeft + el.clientLeft);
+            yPosition += (el.offsetTop - el.scrollTop + el.clientTop);
+            el = el.offsetParent;
+        }
+        return {
+            x: xPosition,
+            y: yPosition
+        };
+    }
+  </script>
+ 
+</body>
+ 
+</html>
